@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Search, ChevronDown, MoreHorizontal, Home, Dumbbell, User, Clock, AlignLeft, Save, Trash2, Play, Square, Minus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Mock data for exercises (unchanged)
 const mockExercises = [
@@ -328,6 +329,7 @@ const ExecuteWorkout = ({ routines }) => {
   const [isActive, setIsActive] = useState(false);
   const [workoutData, setWorkoutData] = useState({});
   const [restTimers, setRestTimers] = useState({});
+  const [expandedExercise, setExpandedExercise] = useState(null);
 
   useEffect(() => {
     let interval = null;
@@ -448,94 +450,155 @@ const ExecuteWorkout = ({ routines }) => {
   }
 
   return (
-    <div className="p-4">
-      <h2 className="text-2xl font-bold mb-4">{routine.name} - {day.name}</h2>
-      <div className="mb-4 text-xl font-semibold">
+    <div className="p-4 bg-gray-100 min-h-screen">
+      <motion.h2 
+        className="text-3xl font-bold mb-4 text-gray-800"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        {routine.name} - {day.name}
+      </motion.h2>
+      <motion.div 
+        className="mb-4 text-2xl font-semibold text-blue-600"
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
         Time: {formatTime(elapsedTime)}
-      </div>
-      {!isActive ? (
-        <button
-          onClick={startWorkout}
-          className="mb-4 bg-green-500 text-white px-4 py-2 rounded-full flex items-center justify-center"
-        >
-          <Play size={20} className="mr-2" />
-          Start Workout
-        </button>
-      ) : (
-        <button
-          onClick={endWorkout}
-          className="mb-4 bg-red-500 text-white px-4 py-2 rounded-full flex items-center justify-center"
-        >
-          <Square size={20} className="mr-2" />
-          End Workout
-        </button>
-      )}
-      {day.exercises.map(exId => {
-        const exercise = mockExercises.find(e => e.id === exId);
-        return (
-          <div key={exId} className="mb-6 bg-white rounded-lg p-4 shadow">
-            <h3 className="text-lg font-semibold mb-2">{exercise ? exercise.name : 'Unknown Exercise'}</h3>
-            {workoutData[exId]?.map((set, setIndex) => (
-              <div key={setIndex} className="grid grid-cols-4 gap-2 mb-2 items-center">
-                <div className="flex items-center">
-                  <span className="mr-2">Set {setIndex + 1}</span>
-                </div>
-                <input
-                  type="number"
-                  placeholder="Reps"
-                  value={set.reps}
-                  className="p-2 border rounded"
-                  onChange={(e) => updateSetData(exId, setIndex, 'reps', e.target.value)}
-                />
-                <input
-                  type="number"
-                  placeholder="Weight"
-                  value={set.weight}
-                  className="p-2 border rounded"
-                  onChange={(e) => updateSetData(exId, setIndex, 'weight', e.target.value)}
-                />
-                <button
-                  onClick={() => removeSet(exId, setIndex)}
-                  className="bg-red-500 text-white p-2 rounded"
-                >
-                  <Minus size={20} />
-                </button>
-              </div>
-            ))}
-            <div className="flex justify-between items-center mt-2">
-              <button
-                onClick={() => addSet(exId)}
-                className="bg-blue-500 text-white px-4 py-2 rounded-full flex items-center justify-center"
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
+        {!isActive ? (
+          <button
+            onClick={startWorkout}
+            className="mb-6 bg-green-500 text-white px-6 py-3 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-all duration-300"
+          >
+            <Play size={24} className="mr-2" />
+            Start Workout
+          </button>
+        ) : (
+          <button
+            onClick={endWorkout}
+            className="mb-6 bg-red-500 text-white px-6 py-3 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-all duration-300"
+          >
+            <Square size={24} className="mr-2" />
+            End Workout
+          </button>
+        )}
+      </motion.div>
+      <AnimatePresence>
+        {day.exercises.map(exId => {
+          const exercise = mockExercises.find(e => e.id === exId);
+          const isExpanded = expandedExercise === exId;
+          return (
+            <motion.div 
+              key={exId} 
+              className="mb-6 bg-white rounded-lg p-4 shadow-md"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div 
+                className="flex justify-between items-center cursor-pointer"
+                onClick={() => setExpandedExercise(isExpanded ? null : exId)}
               >
-                <Plus size={20} className="mr-2" />
-                Add Set
-              </button>
-              <div className="flex items-center">
-                <input
-                  type="number"
-                  value={restTimers[exId]?.time}
-                  onChange={(e) => updateRestTime(exId, parseInt(e.target.value))}
-                  className="w-16 p-2 border rounded mr-2"
+                <h3 className="text-xl font-semibold text-gray-800">{exercise ? exercise.name : 'Unknown Exercise'}</h3>
+                <ChevronDown 
+                  size={24} 
+                  className={`text-gray-600 transition-transform duration-300 ${isExpanded ? 'transform rotate-180' : ''}`}
                 />
-                <button
-                  onClick={() => toggleRestTimer(exId)}
-                  className={`${
-                    restTimers[exId]?.isActive ? 'bg-red-500' : 'bg-green-500'
-                  } text-white px-4 py-2 rounded-full flex items-center justify-center`}
-                >
-                  <Clock size={20} className="mr-2" />
-                  {restTimers[exId]?.isActive ? 'Stop' : 'Start'} Rest
-                </button>
               </div>
-            </div>
-            {restTimers[exId]?.isActive && (
-              <div className="mt-2 text-center font-bold text-xl">
-                Rest Time: {formatTime(restTimers[exId].time * 1000)}
-              </div>
-            )}
-          </div>
-        );
-      })}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {workoutData[exId]?.map((set, setIndex) => (
+                      <motion.div 
+                        key={setIndex} 
+                        className="grid grid-cols-4 gap-2 mb-2 items-center mt-4"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2, delay: setIndex * 0.1 }}
+                      >
+                        <div className="flex items-center">
+                          <span className="mr-2 text-gray-700">Set {setIndex + 1}</span>
+                        </div>
+                        <input
+                          type="number"
+                          placeholder="Reps"
+                          value={set.reps}
+                          className="p-2 border rounded focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                          onChange={(e) => updateSetData(exId, setIndex, 'reps', e.target.value)}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Weight"
+                          value={set.weight}
+                          className="p-2 border rounded focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                          onChange={(e) => updateSetData(exId, setIndex, 'weight', e.target.value)}
+                        />
+                        <button
+                          onClick={() => removeSet(exId, setIndex)}
+                          className="bg-red-500 text-white p-2 rounded hover:bg-red-600 transition-all duration-300"
+                        >
+                          <Minus size={20} />
+                        </button>
+                      </motion.div>
+                    ))}
+                    <div className="flex justify-between items-center mt-4">
+                      <button
+                        onClick={() => addSet(exId)}
+                        className="bg-blue-500 text-white px-4 py-2 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all duration-300"
+                      >
+                        <Plus size={20} className="mr-2" />
+                        Add Set
+                      </button>
+                      <div className="flex items-center">
+                        <input
+                          type="number"
+                          value={restTimers[exId]?.time}
+                          onChange={(e) => updateRestTime(exId, parseInt(e.target.value))}
+                          className="w-16 p-2 border rounded mr-2 focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                        />
+                        <button
+                          onClick={() => toggleRestTimer(exId)}
+                          className={`${
+                            restTimers[exId]?.isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+                          } text-white px-4 py-2 rounded-full flex items-center justify-center transition-all duration-300`}
+                        >
+                          <Clock size={20} className="mr-2" />
+                          {restTimers[exId]?.isActive ? 'Stop' : 'Start'} Rest
+                        </button>
+                      </div>
+                    </div>
+                    {restTimers[exId]?.isActive && (
+                      <motion.div 
+                        className="mt-4 text-center font-bold text-2xl text-blue-600"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        Rest Time: {formatTime(restTimers[exId].time * 1000)}
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 };
