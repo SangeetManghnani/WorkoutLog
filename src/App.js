@@ -35,6 +35,7 @@ const initialRoutines = [
 ];
 
 
+
 const ExerciseList = () => {
   const navigate = useNavigate();
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -316,7 +317,7 @@ const ViewRoutine = ({ routines }) => {
   );
 };
 
-// New component for executing a workout
+// Updated ExecuteWorkout component with dynamic set addition
 const ExecuteWorkout = ({ routines }) => {
   const { routineId, dayId } = useParams();
   const navigate = useNavigate();
@@ -338,6 +339,17 @@ const ExecuteWorkout = ({ routines }) => {
     }
     return () => clearInterval(interval);
   }, [isActive, startTime]);
+
+  useEffect(() => {
+    // Initialize workout data with empty sets for each exercise
+    if (day) {
+      const initialData = {};
+      day.exercises.forEach(exId => {
+        initialData[exId] = [{ reps: '', weight: '' }];
+      });
+      setWorkoutData(initialData);
+    }
+  }, [day]);
 
   const startWorkout = () => {
     setStartTime(Date.now());
@@ -367,10 +379,19 @@ const ExecuteWorkout = ({ routines }) => {
     ].join(':');
   };
 
-  const updateExerciseData = (exerciseId, sets, reps, weight) => {
+  const updateSetData = (exerciseId, setIndex, field, value) => {
     setWorkoutData(prev => ({
       ...prev,
-      [exerciseId]: { sets, reps, weight }
+      [exerciseId]: prev[exerciseId].map((set, index) => 
+        index === setIndex ? { ...set, [field]: value } : set
+      )
+    }));
+  };
+
+  const addSet = (exerciseId) => {
+    setWorkoutData(prev => ({
+      ...prev,
+      [exerciseId]: [...prev[exerciseId], { reps: '', weight: '' }]
     }));
   };
 
@@ -404,34 +425,43 @@ const ExecuteWorkout = ({ routines }) => {
       {day.exercises.map(exId => {
         const exercise = mockExercises.find(e => e.id === exId);
         return (
-          <div key={exId} className="mb-4 bg-white rounded-lg p-4 shadow">
+          <div key={exId} className="mb-6 bg-white rounded-lg p-4 shadow">
             <h3 className="text-lg font-semibold mb-2">{exercise ? exercise.name : 'Unknown Exercise'}</h3>
-            <div className="grid grid-cols-3 gap-2">
-              <input
-                type="number"
-                placeholder="Sets"
-                className="p-2 border rounded"
-                onChange={(e) => updateExerciseData(exId, e.target.value, workoutData[exId]?.reps, workoutData[exId]?.weight)}
-              />
-              <input
-                type="number"
-                placeholder="Reps"
-                className="p-2 border rounded"
-                onChange={(e) => updateExerciseData(exId, workoutData[exId]?.sets, e.target.value, workoutData[exId]?.weight)}
-              />
-              <input
-                type="number"
-                placeholder="Weight"
-                className="p-2 border rounded"
-                onChange={(e) => updateExerciseData(exId, workoutData[exId]?.sets, workoutData[exId]?.reps, e.target.value)}
-              />
-            </div>
+            {workoutData[exId]?.map((set, setIndex) => (
+              <div key={setIndex} className="grid grid-cols-3 gap-2 mb-2">
+                <div className="flex items-center">
+                  <span className="mr-2">Set {setIndex + 1}</span>
+                </div>
+                <input
+                  type="number"
+                  placeholder="Reps"
+                  value={set.reps}
+                  className="p-2 border rounded"
+                  onChange={(e) => updateSetData(exId, setIndex, 'reps', e.target.value)}
+                />
+                <input
+                  type="number"
+                  placeholder="Weight"
+                  value={set.weight}
+                  className="p-2 border rounded"
+                  onChange={(e) => updateSetData(exId, setIndex, 'weight', e.target.value)}
+                />
+              </div>
+            ))}
+            <button
+              onClick={() => addSet(exId)}
+              className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-full flex items-center justify-center"
+            >
+              <Plus size={20} className="mr-2" />
+              Add Set
+            </button>
           </div>
         );
       })}
     </div>
   );
 };
+
 
 const WorkoutApp = () => {
   const [routines, setRoutines] = useState(initialRoutines);
@@ -499,6 +529,7 @@ const WorkoutApp = () => {
     </div>
   );
 };
+
 
 const App = () => (
   <Router>
