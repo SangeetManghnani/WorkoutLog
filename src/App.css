@@ -36,3 +36,28 @@
     transform: rotate(360deg);
   }
 }
+
+/* App.css */
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background-color: #f8f8f8;
+  border-top: 1px solid #e7e7e7;
+  padding: 10px 0;
+}
+
+.nav-icon {
+  font-size: 24px;
+  text-decoration: none;
+  color: black;
+}
+
+.routine {
+  margin: 20px;
+  padding: 15px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
