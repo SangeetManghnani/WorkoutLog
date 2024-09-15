@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Link, useNavigate, useParams } from 'react-router-dom';
-import { Plus, Search, ChevronDown, MoreHorizontal, Home, Dumbbell, User, Clock, AlignLeft, Save, Trash2, Play, Square } from 'lucide-react';
+import { Plus, Search, ChevronDown, MoreHorizontal, Home, Dumbbell, User, Clock, AlignLeft, Save, Trash2, Play, Square, Minus } from 'lucide-react';
 
 // Mock data for exercises (unchanged)
 const mockExercises = [
@@ -327,6 +327,7 @@ const ExecuteWorkout = ({ routines }) => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [workoutData, setWorkoutData] = useState({});
+  const [restTimers, setRestTimers] = useState({});
 
   useEffect(() => {
     let interval = null;
@@ -341,13 +342,15 @@ const ExecuteWorkout = ({ routines }) => {
   }, [isActive, startTime]);
 
   useEffect(() => {
-    // Initialize workout data with empty sets for each exercise
     if (day) {
       const initialData = {};
+      const initialTimers = {};
       day.exercises.forEach(exId => {
         initialData[exId] = [{ reps: '', weight: '' }];
+        initialTimers[exId] = { time: 60, isActive: false };
       });
       setWorkoutData(initialData);
+      setRestTimers(initialTimers);
     }
   }, [day]);
 
@@ -358,7 +361,6 @@ const ExecuteWorkout = ({ routines }) => {
 
   const endWorkout = () => {
     setIsActive(false);
-    // Here you would typically save the workout data
     console.log('Workout completed:', {
       routine: routine.name,
       day: day.name,
@@ -395,6 +397,52 @@ const ExecuteWorkout = ({ routines }) => {
     }));
   };
 
+  const removeSet = (exerciseId, setIndex) => {
+    setWorkoutData(prev => ({
+      ...prev,
+      [exerciseId]: prev[exerciseId].filter((_, index) => index !== setIndex)
+    }));
+  };
+
+  const toggleRestTimer = (exerciseId) => {
+    setRestTimers(prev => ({
+      ...prev,
+      [exerciseId]: {
+        ...prev[exerciseId],
+        isActive: !prev[exerciseId].isActive
+      }
+    }));
+  };
+
+  const updateRestTime = (exerciseId, time) => {
+    setRestTimers(prev => ({
+      ...prev,
+      [exerciseId]: {
+        ...prev[exerciseId],
+        time: Math.max(0, time)
+      }
+    }));
+  };
+
+  useEffect(() => {
+    const intervals = Object.keys(restTimers).map(exId => {
+      if (restTimers[exId].isActive && restTimers[exId].time > 0) {
+        return setInterval(() => {
+          setRestTimers(prev => ({
+            ...prev,
+            [exId]: {
+              ...prev[exId],
+              time: prev[exId].time - 1
+            }
+          }));
+        }, 1000);
+      }
+      return null;
+    });
+
+    return () => intervals.forEach(interval => interval && clearInterval(interval));
+  }, [restTimers]);
+
   if (!routine || !day) {
     return <div>Workout not found</div>;
   }
@@ -428,7 +476,7 @@ const ExecuteWorkout = ({ routines }) => {
           <div key={exId} className="mb-6 bg-white rounded-lg p-4 shadow">
             <h3 className="text-lg font-semibold mb-2">{exercise ? exercise.name : 'Unknown Exercise'}</h3>
             {workoutData[exId]?.map((set, setIndex) => (
-              <div key={setIndex} className="grid grid-cols-3 gap-2 mb-2">
+              <div key={setIndex} className="grid grid-cols-4 gap-2 mb-2 items-center">
                 <div className="flex items-center">
                   <span className="mr-2">Set {setIndex + 1}</span>
                 </div>
@@ -446,15 +494,45 @@ const ExecuteWorkout = ({ routines }) => {
                   className="p-2 border rounded"
                   onChange={(e) => updateSetData(exId, setIndex, 'weight', e.target.value)}
                 />
+                <button
+                  onClick={() => removeSet(exId, setIndex)}
+                  className="bg-red-500 text-white p-2 rounded"
+                >
+                  <Minus size={20} />
+                </button>
               </div>
             ))}
-            <button
-              onClick={() => addSet(exId)}
-              className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-full flex items-center justify-center"
-            >
-              <Plus size={20} className="mr-2" />
-              Add Set
-            </button>
+            <div className="flex justify-between items-center mt-2">
+              <button
+                onClick={() => addSet(exId)}
+                className="bg-blue-500 text-white px-4 py-2 rounded-full flex items-center justify-center"
+              >
+                <Plus size={20} className="mr-2" />
+                Add Set
+              </button>
+              <div className="flex items-center">
+                <input
+                  type="number"
+                  value={restTimers[exId]?.time}
+                  onChange={(e) => updateRestTime(exId, parseInt(e.target.value))}
+                  className="w-16 p-2 border rounded mr-2"
+                />
+                <button
+                  onClick={() => toggleRestTimer(exId)}
+                  className={`${
+                    restTimers[exId]?.isActive ? 'bg-red-500' : 'bg-green-500'
+                  } text-white px-4 py-2 rounded-full flex items-center justify-center`}
+                >
+                  <Clock size={20} className="mr-2" />
+                  {restTimers[exId]?.isActive ? 'Stop' : 'Start'} Rest
+                </button>
+              </div>
+            </div>
+            {restTimers[exId]?.isActive && (
+              <div className="mt-2 text-center font-bold text-xl">
+                Rest Time: {formatTime(restTimers[exId].time * 1000)}
+              </div>
+            )}
           </div>
         );
       })}
@@ -529,7 +607,6 @@ const WorkoutApp = () => {
     </div>
   );
 };
-
 
 const App = () => (
   <Router>
