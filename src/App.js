@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Link, useNavigate, useParams } from 'react-router-dom';
-import { Plus, Search, ChevronDown, MoreHorizontal, Home, Dumbbell, User, Clock, AlignLeft, Save, Trash2, Play, Square, Minus } from 'lucide-react';
+import { Plus, Search, ChevronDown, MoreHorizontal, Home, Dumbbell, User, Clock, AlignLeft, Save, Trash2, Play, Square, Minus, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Mock data for exercises (unchanged)
@@ -328,31 +328,26 @@ const ExecuteWorkout = ({ routines }) => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [workoutData, setWorkoutData] = useState({});
-  const [restTimers, setRestTimers] = useState({});
-  const [expandedExercise, setExpandedExercise] = useState(null);
 
   useEffect(() => {
     let interval = null;
     if (isActive) {
       interval = setInterval(() => {
-        setElapsedTime(Date.now() - startTime);
+        setElapsedTime(prevTime => prevTime + 1);
       }, 1000);
-    } else if (!isActive && startTime !== null) {
+    } else if (!isActive && elapsedTime !== 0) {
       clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isActive, startTime]);
+  }, [isActive, elapsedTime]);
 
   useEffect(() => {
     if (day) {
       const initialData = {};
-      const initialTimers = {};
       day.exercises.forEach(exId => {
-        initialData[exId] = [{ reps: '', weight: '' }];
-        initialTimers[exId] = { time: 60, isActive: false };
+        initialData[exId] = [{ kg: 0, reps: 0 }];
       });
       setWorkoutData(initialData);
-      setRestTimers(initialTimers);
     }
   }, [day]);
 
@@ -363,31 +358,33 @@ const ExecuteWorkout = ({ routines }) => {
 
   const endWorkout = () => {
     setIsActive(false);
-    console.log('Workout completed:', {
-      routine: routine.name,
-      day: day.name,
-      duration: formatTime(elapsedTime),
-      exercises: workoutData
-    });
+    // Handle workout completion logic here
     navigate('/');
   };
 
-  const formatTime = (ms) => {
-    const seconds = Math.floor((ms / 1000) % 60);
-    const minutes = Math.floor((ms / 1000 / 60) % 60);
-    const hours = Math.floor((ms / 1000 / 3600) % 24);
-    return [
-      hours.toString().padStart(2, '0'),
-      minutes.toString().padStart(2, '0'),
-      seconds.toString().padStart(2, '0')
-    ].join(':');
+  const formatTime = (seconds) => {
+    return `${seconds}s`;
+  };
+
+  const calculateVolume = () => {
+    let totalVolume = 0;
+    Object.values(workoutData).forEach(exercise => {
+      exercise.forEach(set => {
+        totalVolume += set.kg * set.reps;
+      });
+    });
+    return `${totalVolume} kg`;
+  };
+
+  const calculateTotalSets = () => {
+    return Object.values(workoutData).reduce((total, exercise) => total + exercise.length, 0);
   };
 
   const updateSetData = (exerciseId, setIndex, field, value) => {
     setWorkoutData(prev => ({
       ...prev,
       [exerciseId]: prev[exerciseId].map((set, index) => 
-        index === setIndex ? { ...set, [field]: value } : set
+        index === setIndex ? { ...set, [field]: parseFloat(value) || 0 } : set
       )
     }));
   };
@@ -395,214 +392,118 @@ const ExecuteWorkout = ({ routines }) => {
   const addSet = (exerciseId) => {
     setWorkoutData(prev => ({
       ...prev,
-      [exerciseId]: [...prev[exerciseId], { reps: '', weight: '' }]
+      [exerciseId]: [...prev[exerciseId], { kg: 0, reps: 0 }]
     }));
   };
-
-  const removeSet = (exerciseId, setIndex) => {
-    setWorkoutData(prev => ({
-      ...prev,
-      [exerciseId]: prev[exerciseId].filter((_, index) => index !== setIndex)
-    }));
-  };
-
-  const toggleRestTimer = (exerciseId) => {
-    setRestTimers(prev => ({
-      ...prev,
-      [exerciseId]: {
-        ...prev[exerciseId],
-        isActive: !prev[exerciseId].isActive
-      }
-    }));
-  };
-
-  const updateRestTime = (exerciseId, time) => {
-    setRestTimers(prev => ({
-      ...prev,
-      [exerciseId]: {
-        ...prev[exerciseId],
-        time: Math.max(0, time)
-      }
-    }));
-  };
-
-  useEffect(() => {
-    const intervals = Object.keys(restTimers).map(exId => {
-      if (restTimers[exId].isActive && restTimers[exId].time > 0) {
-        return setInterval(() => {
-          setRestTimers(prev => ({
-            ...prev,
-            [exId]: {
-              ...prev[exId],
-              time: prev[exId].time - 1
-            }
-          }));
-        }, 1000);
-      }
-      return null;
-    });
-
-    return () => intervals.forEach(interval => interval && clearInterval(interval));
-  }, [restTimers]);
 
   if (!routine || !day) {
     return <div>Workout not found</div>;
   }
 
   return (
-    <div className="p-4 bg-gray-100 min-h-screen">
-      <motion.h2 
-        className="text-3xl font-bold mb-4 text-gray-800"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        {routine.name} - {day.name}
-      </motion.h2>
-      <motion.div 
-        className="mb-4 text-2xl font-semibold text-blue-600"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        Time: {formatTime(elapsedTime)}
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
-        {!isActive ? (
-          <button
-            onClick={startWorkout}
-            className="mb-6 bg-green-500 text-white px-6 py-3 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-all duration-300"
+    <div className="p-4 bg-white min-h-screen">
+      <header className="flex justify-between items-center mb-4">
+        <button onClick={() => navigate(-1)} className="text-blue-500 flex items-center">
+          <ChevronLeft size={20} />
+          Log Workout
+        </button>
+        <div className="flex items-center">
+          <Clock className="mr-2" />
+          <button 
+            onClick={isActive ? endWorkout : startWorkout} 
+            className="bg-blue-500 text-white px-4 py-1 rounded-full"
           >
-            <Play size={24} className="mr-2" />
-            Start Workout
+            {isActive ? 'Finish' : 'Start'}
           </button>
-        ) : (
-          <button
-            onClick={endWorkout}
-            className="mb-6 bg-red-500 text-white px-6 py-3 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-all duration-300"
-          >
-            <Square size={24} className="mr-2" />
-            End Workout
-          </button>
-        )}
-      </motion.div>
-      <AnimatePresence>
-        {day.exercises.map(exId => {
-          const exercise = mockExercises.find(e => e.id === exId);
-          const isExpanded = expandedExercise === exId;
-          return (
-            <motion.div 
-              key={exId} 
-              className="mb-6 bg-white rounded-lg p-4 shadow-md"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div 
-                className="flex justify-between items-center cursor-pointer"
-                onClick={() => setExpandedExercise(isExpanded ? null : exId)}
-              >
-                <h3 className="text-xl font-semibold text-gray-800">{exercise ? exercise.name : 'Unknown Exercise'}</h3>
-                <ChevronDown 
-                  size={24} 
-                  className={`text-gray-600 transition-transform duration-300 ${isExpanded ? 'transform rotate-180' : ''}`}
+        </div>
+      </header>
+
+      <div className="flex justify-between mb-4 text-center">
+        <div>
+          <p className="text-gray-500">Duration</p>
+          <p className="text-blue-500 font-bold">{formatTime(elapsedTime)}</p>
+        </div>
+        <div>
+          <p className="text-gray-500">Volume</p>
+          <p className="font-bold">{calculateVolume()}</p>
+        </div>
+        <div>
+          <p className="text-gray-500">Sets</p>
+          <p className="font-bold">{calculateTotalSets()}</p>
+        </div>
+      </div>
+
+      {day.exercises.map(exId => {
+        const exercise = mockExercises.find(e => e.id === exId);
+        return (
+          <div key={exId} className="bg-white rounded-lg p-4 shadow mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center">
+                <img src="/api/placeholder/24/24" alt="Exercise" className="mr-2" />
+                <h2 className="text-lg font-semibold text-blue-500">{exercise?.name}</h2>
+              </div>
+              <MoreHorizontal />
+            </div>
+            <input
+              type="text"
+              placeholder="Add notes here..."
+              className="w-full bg-gray-100 p-2 rounded mb-2"
+            />
+            <div className="flex items-center text-blue-500 mb-4">
+              <Clock size={16} className="mr-1" />
+              <span>Rest Timer: OFF</span>
+            </div>
+            <div className="grid grid-cols-4 gap-4 text-center mb-4">
+              <div>
+                <p className="text-gray-500">SET</p>
+                <p className="font-bold">1</p>
+              </div>
+              <div>
+                <p className="text-gray-500">PREVIOUS</p>
+                <p>-</p>
+              </div>
+              <div>
+                <p className="text-gray-500">KG</p>
+                <input 
+                  type="number" 
+                  className="w-full text-center border rounded" 
+                  value={workoutData[exId]?.[0]?.kg || 0}
+                  onChange={(e) => updateSetData(exId, 0, 'kg', e.target.value)}
                 />
               </div>
-              <AnimatePresence>
-                {isExpanded && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {workoutData[exId]?.map((set, setIndex) => (
-                      <motion.div 
-                        key={setIndex} 
-                        className="grid grid-cols-4 gap-2 mb-2 items-center mt-4"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.2, delay: setIndex * 0.1 }}
-                      >
-                        <div className="flex items-center">
-                          <span className="mr-2 text-gray-700">Set {setIndex + 1}</span>
-                        </div>
-                        <input
-                          type="number"
-                          placeholder="Reps"
-                          value={set.reps}
-                          className="p-2 border rounded focus:ring-2 focus:ring-blue-500 transition-all duration-300"
-                          onChange={(e) => updateSetData(exId, setIndex, 'reps', e.target.value)}
-                        />
-                        <input
-                          type="number"
-                          placeholder="Weight"
-                          value={set.weight}
-                          className="p-2 border rounded focus:ring-2 focus:ring-blue-500 transition-all duration-300"
-                          onChange={(e) => updateSetData(exId, setIndex, 'weight', e.target.value)}
-                        />
-                        <button
-                          onClick={() => removeSet(exId, setIndex)}
-                          className="bg-red-500 text-white p-2 rounded hover:bg-red-600 transition-all duration-300"
-                        >
-                          <Minus size={20} />
-                        </button>
-                      </motion.div>
-                    ))}
-                    <div className="flex justify-between items-center mt-4">
-                      <button
-                        onClick={() => addSet(exId)}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all duration-300"
-                      >
-                        <Plus size={20} className="mr-2" />
-                        Add Set
-                      </button>
-                      <div className="flex items-center">
-                        <input
-                          type="number"
-                          value={restTimers[exId]?.time}
-                          onChange={(e) => updateRestTime(exId, parseInt(e.target.value))}
-                          className="w-16 p-2 border rounded mr-2 focus:ring-2 focus:ring-blue-500 transition-all duration-300"
-                        />
-                        <button
-                          onClick={() => toggleRestTimer(exId)}
-                          className={`${
-                            restTimers[exId]?.isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
-                          } text-white px-4 py-2 rounded-full flex items-center justify-center transition-all duration-300`}
-                        >
-                          <Clock size={20} className="mr-2" />
-                          {restTimers[exId]?.isActive ? 'Stop' : 'Start'} Rest
-                        </button>
-                      </div>
-                    </div>
-                    {restTimers[exId]?.isActive && (
-                      <motion.div 
-                        className="mt-4 text-center font-bold text-2xl text-blue-600"
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        Rest Time: {formatTime(restTimers[exId].time * 1000)}
-                      </motion.div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+              <div>
+                <p className="text-gray-500">REPS</p>
+                <input 
+                  type="number" 
+                  className="w-full text-center border rounded" 
+                  value={workoutData[exId]?.[0]?.reps || 0}
+                  onChange={(e) => updateSetData(exId, 0, 'reps', e.target.value)}
+                />
+              </div>
+            </div>
+            <button 
+              onClick={() => addSet(exId)}
+              className="w-full bg-gray-200 py-2 rounded-lg flex items-center justify-center"
+            >
+              <Plus size={20} className="mr-2" />
+              Add Set
+            </button>
+          </div>
+        );
+      })}
+      
+      <button className="w-full bg-blue-500 text-white py-3 rounded-lg mb-4">
+        <Plus size={20} className="inline mr-2" />
+        Add Exercise
+      </button>
+
+      <div className="grid grid-cols-2 gap-4">
+        <button className="bg-gray-200 py-2 rounded-lg">Settings</button>
+        <button className="bg-gray-200 py-2 rounded-lg text-red-500">Discard Workout</button>
+      </div>
     </div>
   );
 };
-
 
 const WorkoutApp = () => {
   const [routines, setRoutines] = useState(initialRoutines);
